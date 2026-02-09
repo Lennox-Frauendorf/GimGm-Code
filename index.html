@@ -4,12 +4,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GimGm-Code</title>
+    <title>GimGm-Code AI</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
+
+    <div id="loader-overlay" style="display: none;">
+        <div class="loader"></div>
+        <p>Initialisiere AI-Core...</p>
+    </div>
+
+    <div id="cookie-overlay" style="display: none;">
+        <div class="cookie-box animate-pop">
+            <div class="cookie-icon"><i class="fas fa-cookie-bite"></i></div>
+            <h2>Cookie-Einstellungen</h2>
+            <p>Wir speichern deine Projekte lokal im Browser. <a href="#" onclick="openAGB()">Mehr Infos</a></p>
+            <div class="cookie-buttons">
+                <button class="btn-cancel" onclick="rejectCookies()">Ablehnen</button>
+                <button class="btn-create" onclick="acceptCookies()">Akzeptieren</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
 
     <div id="auth-container">
         <div class="auth-box animate-pop">
@@ -18,93 +37,125 @@
                 <button id="tab-login" class="active" onclick="switchAuth('login')">Anmelden</button>
                 <button id="tab-register" onclick="switchAuth('register')">Registrieren</button>
             </div>
-
-            <div class="tab-slider"></div>
-
             <form id="auth-form">
                 <div class="input-group">
                     <i class="fas fa-user"></i>
                     <input type="text" id="username" placeholder="Benutzername" required autocomplete="off">
                 </div>
+                <div class="input-group" id="email-group" style="display: none;">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="email" placeholder="E-Mail Adresse">
+                </div>
                 <div class="input-group">
                     <i class="fas fa-lock"></i>
                     <input type="password" id="password" placeholder="Passwort" required>
+                    <i class="fas fa-eye password-toggle" onclick="togglePassword()"></i>
+                </div>
+                <div id="register-extras" style="display: none; text-align: left; margin-bottom: 15px;">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="agb-check">
+                        <span>Ich akzeptiere die <a href="#" onclick="openAGB()">AGB</a></span>
+                    </label>
                 </div>
                 <button type="submit" id="auth-btn" class="ripple">Anmelden</button>
             </form>
-            <p id="auth-msg"></p>
         </div>
     </div>
 
-    <div id="modal-overlay" style="display: none;">
+    <div id="agb-modal" class="modal-overlay" style="display: none;">
+        <div class="modal animate-pop content-modal">
+            <h2>Nutzungsbedingungen</h2>
+            <div class="modal-body"><p>Rechtstext Platzhalter...</p></div>
+            <button onclick="closeAGB()" class="btn-create" style="width:100%">Schließen</button>
+        </div>
+    </div>
+
+    <div id="new-project-modal" class="modal-overlay" style="display: none;">
         <div class="modal animate-pop">
             <h2>Neues Projekt</h2>
-            <input type="text" id="new-project-name" placeholder="Projektname (z.B. MeinWeb)" />
+            <input type="text" id="new-project-name" placeholder="Projektname" />
             <div class="lang-selector">
-                <label><input type="checkbox" value="html" checked disabled> HTML5 (Basis)</label>
+                <label><input type="checkbox" value="html" checked disabled> HTML5</label>
                 <label><input type="checkbox" value="css" checked> CSS3</label>
                 <label><input type="checkbox" value="js" checked> JavaScript</label>
                 <label><input type="checkbox" value="php"> PHP</label>
                 <label><input type="checkbox" value="py"> Python</label>
             </div>
             <div class="modal-actions">
-                <button onclick="closeModal()" class="btn-cancel">Abbrechen</button>
+                <button onclick="closeModal('new-project-modal')" class="btn-cancel">Abbrechen</button>
                 <button onclick="createProject()" class="btn-create">Erstellen</button>
             </div>
         </div>
     </div>
 
     <div id="ide-container" style="display: none;">
-
+        
         <div class="mobile-header">
             <i class="fas fa-bars" onclick="toggleSidebar()"></i>
-            <span>GimGm-Code</span>
+            <span>GimGm AI</span>
+            <i class="fas fa-robot" onclick="toggleAI()" style="color: #007acc;"></i>
             <i class="fas fa-play" onclick="runCode()"></i>
-        </div>
-
-        <div class="activity-bar">
-            <div class="icon active" onclick="toggleSidebar()"><i class="far fa-copy"></i></div>
-            <div class="icon" onclick="openNewProjectModal()" title="Neues Projekt"><i class="fas fa-plus"></i></div>
-            <div class="icon" onclick="triggerUpload()" title="Projekt laden"><i class="fas fa-upload"></i></div>
-            <input type="file" id="file-upload" style="display: none;" accept=".json">
-            <div class="spacer"></div>
-            <div class="icon" onclick="logout()"><i class="fas fa-sign-out-alt"></i></div>
         </div>
 
         <div class="sidebar" id="sidebar">
             <div class="sidebar-title">
                 <span>PROJEKTE</span>
-                <i class="fas fa-ellipsis-h" style="cursor: pointer;"></i>
+                <i class="fas fa-plus" onclick="openNewProjectModal()" title="Neu" style="cursor: pointer;"></i>
             </div>
-            <div id="project-list" class="file-tree">
-            </div>
+            <div id="project-list" class="file-tree"></div>
 
-            <div class="sidebar-title" style="margin-top: 20px;">DATEIEN IM PROJEKT</div>
-            <div id="file-list" class="file-tree">
+            <div class="sidebar-title" style="margin-top: 20px;">
+                DATEIEN
+                <div style="display:flex; gap:10px;">
+                    <i class="fas fa-folder-open" onclick="triggerFileUpload()" title="Dateien öffnen" style="cursor: pointer;"></i>
+                    <i class="fas fa-download" onclick="downloadActiveFile()" title="Download" style="cursor: pointer;"></i>
+                </div>
+            </div>
+            <input type="file" id="file-upload-input" style="display: none;" multiple>
+            
+            <div id="file-list" class="file-tree"></div>
+
+            <div class="sidebar-bottom">
+                <button onclick="toggleAI()" class="btn-ai"><i class="fas fa-robot"></i> AI Hilfe</button>
+                <button onclick="logout()" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Logout</button>
             </div>
         </div>
 
         <div class="editor-area">
-            <div class="editor-tabs" id="editor-tabs">
-            </div>
-
+            <div class="editor-tabs" id="editor-tabs"></div>
             <div class="code-container" id="code-container">
+                <div id="autocomplete-box" class="autocomplete-box" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div id="ai-panel" class="ai-panel">
+            <div class="ai-header">
+                <span><i class="fas fa-robot"></i> GimGm Bot</span>
+                <i class="fas fa-times" onclick="toggleAI()" style="cursor:pointer;"></i>
+            </div>
+            <div class="ai-content" id="ai-chat">
+                <div class="ai-msg bot">Hallo! Ich bin dein Code-Assistent. Ich suche nach Fehlern...</div>
+            </div>
+            <div class="ai-actions">
+                <button onclick="runAICheck()" class="btn-create" style="width:100%">Code Analysieren</button>
             </div>
         </div>
 
         <div class="preview-area" id="preview-area">
-            <div class="preview-header">
-                <span>LIVE VORSCHAU</span>
-                <i class="fas fa-expand-alt" onclick="toggleFullscreenPreview()" title="Vollbild"></i>
+            <div class="preview-header" id="preview-header">
+                <div class="drag-handle"><i class="fas fa-grip-vertical"></i> LIVE VORSCHAU</div>
+                <div class="preview-controls">
+                    <i class="fas fa-sync-alt" onclick="runCode()" title="Reload"></i>
+                    <i class="fas fa-expand" onclick="toggleFullscreen()" title="Vollbild"></i>
+                    <i class="fas fa-window-minimize" onclick="minimizePreview()" title="Minimieren"></i>
+                </div>
             </div>
-            <iframe id="preview-frame"></iframe>
-            <div id="terminal-output" style="display:none; padding:10px; color:#ddd; font-family:monospace;">
-                Terminal Output (PHP/Python Simulation)...
+            <div class="preview-content">
+                <iframe id="preview-frame"></iframe>
             </div>
         </div>
     </div>
 
     <script src="script.js"></script>
 </body>
-
 </html>
