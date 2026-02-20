@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GimGm-Code Ultimate V3</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #1e1e1e;
+            --bg-darker: #252526;
+            --accent: #007acc;
+            --text-main: #cccccc;
+            --text-light: #ffffff;
+            --border: #3e3e42;
+            --success: #4caf50;
+            --danger: #f44336;
+            --ai-bg: #2d2d30;
+            --line-num-bg: #2e2e2e;
+            --line-num-text: #858585;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- LOADER & TOASTS --- */
+        #loader-overlay { position: fixed; inset: 0; background: var(--bg-dark); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .loader { border: 5px solid #333; border-top: 5px solid var(--accent); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 11000; }
+        .toast { background: #333; color: white; padding: 12px 20px; border-radius: 4px; margin-bottom: 10px; border-left: 4px solid var(--accent); box-shadow: 0 4px 12px rgba(0,0,0,0.3); animation: slideIn 0.3s; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        /* --- MODALS --- */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        .modal { background: var(--bg-darker); border: 1px solid var(--border); padding: 30px; width: 90%; max-width: 500px; border-radius: 8px; text-align: center; box-shadow: 0 0 20px rgba(0,0,0,0.5); color: var(--text-main); }
+        .modal-actions { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+        .btn-create { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+        .btn-create:hover { background: #005f9e; }
+        .btn-cancel { background: #444; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+        .btn-cancel:hover { background: #555; }
+        .animate-pop { animation: popIn 0.3s ease; }
+        @keyframes popIn { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        /* --- AUTH --- */
+        #auth-container { position: fixed; inset: 0; background: var(--bg-dark); z-index: 5000; display: flex; align-items: center; justify-content: center; }
+        .auth-box { background: var(--bg-darker); padding: 40px; width: 350px; max-width: 90%; border-radius: 8px; text-align: center; border: 1px solid var(--border); }
+        .auth-box h1 { margin-bottom: 20px; color: var(--accent); }
+        .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid var(--border); }
+        .tabs button { flex: 1; background: none; border: none; padding: 10px; color: #888; cursor: pointer; font-weight: bold; }
+        .tabs button.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+        .input-group { position: relative; margin-bottom: 15px; }
+        .input-group input { width: 100%; padding: 12px 12px 12px 40px; background: #333; border: 1px solid transparent; color: white; border-radius: 4px; outline: none; }
+        .input-group input:focus { border-color: var(--accent); }
+        .input-group i { position: absolute; left: 15px; top: 12px; color: #888; }
+        #auth-btn { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+
+        /* --- IDE LAYOUT --- */
+        #ide-container { display: flex; flex: 1; height: 100%; overflow: hidden; position: relative; flex-direction: column; }
+        .mobile-header { display: none; background: var(--bg-darker); padding: 10px 15px; color: white; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); z-index: 30; }
+        .workspace { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+        /* Sidebar */
+        .sidebar { width: 250px; background: var(--bg-darker); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; padding-bottom: 20px; z-index: 100; transition: transform 0.3s; }
+        .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 90; }
+        .sidebar-title { padding: 15px; font-size: 12px; font-weight: bold; color: #888; display: flex; justify-content: space-between; align-items: center; text-transform: uppercase; letter-spacing: 1px; }
+        .file { padding: 8px 15px; cursor: pointer; color: #ccc; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: 0.2s; }
+        .file:hover, .file.active { background: #37373d; color: white; border-left: 2px solid var(--accent); padding-left: 13px; }
+        .sidebar-bottom { margin-top: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); }
+        .btn-ai { background: linear-gradient(45deg, #007acc, #00b4cc); color: white; border: none; padding: 10px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .btn-logout { background: transparent; color: #aaa; border: 1px solid var(--border); padding: 8px; cursor: pointer; }
+        
+        .text-yellow { color: #ffd700; } .text-orange { color: #e34c26; } .text-blue { color: #563d7c; }
+
+        /* Editor Area */
+        .editor-area { flex: 1; display: flex; flex-direction: column; background: var(--bg-dark); position: relative; overflow: hidden; }
+        .editor-tabs { display: flex; background: var(--bg-darker); overflow-x: auto; border-bottom: 1px solid var(--border); height: 40px; align-items: center; }
+        .tab { padding: 0 20px; display: flex; align-items: center; height: 100%; gap: 8px; cursor: pointer; background: #2d2d2d; color: #888; border-right: 1px solid var(--border); font-size: 13px; user-select: none; white-space: nowrap; }
+        .tab.active { background: var(--bg-dark); color: white; border-top: 2px solid var(--accent); }
+        
+        .editor-toolbar { margin-left: auto; padding-right: 15px; display: flex; gap: 15px; color: #888; align-items: center; }
+        .editor-toolbar i { cursor: pointer; transition: 0.2s; font-size: 1.1rem; }
+        .editor-toolbar i:hover { color: white; }
+
+        .code-wrapper { display: flex; flex: 1; position: relative; overflow: hidden; }
+        .line-numbers { width: 45px; background: var(--line-num-bg); color: var(--line-num-text); text-align: right; padding: 15px 5px; font-family: 'Consolas', monospace; font-size: 14px; line-height: 1.5; border-right: 1px solid var(--border); user-select: none; overflow: hidden; }
+        .code-container { flex: 1; position: relative; height: 100%; }
+        .code-input { width: 100%; height: 100%; background: var(--bg-dark); color: #d4d4d4; border: none; resize: none; padding: 15px; font-family: 'Consolas', monospace; font-size: 14px; outline: none; line-height: 1.5; white-space: pre; overflow: auto; }
+
+        /* --- AI PANEL --- */
+        .ai-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 350px; max-width: 100%; background: var(--ai-bg); border-left: 1px solid var(--border); z-index: 120; transform: translateX(100%); transition: transform 0.3s ease; display: flex; flex-direction: column; box-shadow: -5px 0 20px rgba(0,0,0,0.3); }
+        .ai-panel.open { transform: translateX(0); }
+        .ai-header { padding: 15px; background: #252526; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+        .ai-content { flex: 1; padding: 15px; overflow-y: auto; font-size: 13px; display: flex; flex-direction: column; gap: 10px; }
+        .ai-msg { padding: 10px; border-radius: 5px; line-height: 1.4; max-width: 90%; word-wrap: break-word; }
+        .ai-msg ul { padding-left: 20px; margin-top: 5px; }
+        .ai-msg li { margin-bottom: 5px; }
+        .ai-msg.bot { background: #3e3e42; border-left: 3px solid var(--accent); align-self: flex-start; }
+        .ai-msg.user { background: var(--accent); color: white; align-self: flex-end; }
+        .ai-msg.error { border-left-color: var(--danger); background: rgba(244, 67, 54, 0.1); }
+        .ai-msg.success { border-left-color: var(--success); }
+        .ai-actions { padding: 15px; background: #252526; border-top: 1px solid var(--border); }
+
+        /* --- PREVIEW WINDOW --- */
+        .preview-area { position: absolute; right: 20px; top: 60px; width: 400px; height: 300px; background: white; border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.5); display: flex; flex-direction: column; z-index: 50; border-radius: 6px; overflow: hidden; transition: width 0.2s, height 0.2s; }
+        .preview-area.fullscreen { position: fixed !important; inset: 0 !important; width: 100% !important; height: 100% !important; z-index: 9000; border-radius: 0; top: 0 !important; left: 0 !important; }
+        .preview-area.minimized { height: 40px !important; overflow: hidden; }
+        .preview-header { background: #333; color: white; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; cursor: grab; user-select: none; font-size: 14px; }
+        .preview-header:active { cursor: grabbing; }
+        .preview-controls { display: flex; gap: 15px; align-items: center; font-size: 1.1rem; }
+        .preview-controls i { cursor: pointer; opacity: 0.7; transition: 0.2s; }
+        .preview-controls i:hover { opacity: 1; }
+        .preview-content { flex: 1; background: white; position: relative; }
+        iframe { width: 100%; height: 100%; border: none; }
+        .is-dragging iframe { pointer-events: none; }
+
+        /* --- RESPONSIVE TABLET & MOBILE --- */
+        @media (max-width: 1024px) {
+            .preview-area { width: 350px; height: 280px; }
+        }
+
+        @media (max-width: 768px) {
+            .mobile-header { display: flex; } 
+            .workspace { flex-direction: column; }
+            .sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); width: 280px; max-width: 80%; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-backdrop.open { display: block; }
+            
+            /* Preview on Mobile: Fixed to bottom instead of floating */
+            .preview-area { position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; top: auto !important; width: 100% !important; height: 40vh !important; border-radius: 0; z-index: 40; border-top: 2px solid var(--accent); }
+            .preview-area.minimized { height: 40px !important; }
+            .preview-header { cursor: default; } /* No drag on mobile */
+            .preview-header:active { cursor: default; }
+
+            .ai-panel { position: fixed; top: 48px; width: 100%; }
+            .code-input { font-size: 16px; /* Verhindert Auto-Zoom auf iOS */ }
+            .editor-tabs { height: 45px; } /* Größere Touch-Fläche */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <div id="auth-container">
+        <div class="auth-box animate-pop">
+            <h1><i class="fas fa-code"></i> GimGm-Code</h1>
+            <div class="tabs">
+                <button id="tab-login" class="active" onclick="switchAuth('login')">Anmelden</button>
+                <button id="tab-register" onclick="switchAuth('register')">Registrieren</button>
+            </div>
+            <form id="auth-form">
+                <div class="input-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="username" placeholder="Benutzername" required autocomplete="off">
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="password" placeholder="Passwort" required>
+                </div>
+                <button type="submit" id="auth-btn">Anmelden</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="new-project-modal" class="modal-overlay" style="display: none;">
+        <div class="modal animate-pop">
+            <h2>Neues Projekt</h2>
+            <input type="text" id="new-project-name" placeholder="Projektname" style="width: 100%; padding: 12px; background: #333; border: 1px solid #444; color: white; margin: 15px 0; border-radius: 4px;">
+            <div class="modal-actions">
+                <button onclick="closeModal('new-project-modal')" class="btn-cancel">Abbrechen</button>
+                <button onclick="createProject()" class="btn-create">Erstellen</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="ide-container" style="display: none;">
+        
+        <div class="mobile-header">
+            <i class="fas fa-bars" onclick="toggleSidebar()" style="font-size: 1.4rem; cursor: pointer;"></i>
+            <span style="font-weight: bold; letter-spacing: 1px;">GimGm AI</span>
+            <div style="display:flex; gap: 20px;">
+                <i class="fas fa-robot" onclick="toggleAI()" style="color: var(--accent); font-size: 1.4rem; cursor: pointer;"></i>
+                <i class="fas fa-play" onclick="runCode()" style="color: var(--success); font-size: 1.4rem; cursor: pointer;"></i>
+            </div>
+        </div>
+
+        <div class="workspace">
+            <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
+            <div class="sidebar" id="sidebar">
+                <div class="sidebar-title">
+                    <span>Projekte</span>
+                    <i class="fas fa-plus" onclick="openNewProjectModal()" title="Neu" style="cursor: pointer; padding: 5px; font-size: 1.2rem;"></i>
+                </div>
+                <div id="project-list" style="flex-shrink: 0;"></div>
+
+                <div class="sidebar-title" style="margin-top: 20px;">Dateien</div>
+                <div id="file-list" style="flex: 1;"></div>
+
+                <div class="sidebar-bottom">
+                    <button onclick="toggleAI()" class="btn-ai"><i class="fas fa-robot"></i> AI Hilfe</button>
+                    <button onclick="logout()" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                </div>
+            </div>
+
+            <div class="editor-area">
+                <div class="editor-tabs" id="editor-tabs"></div>
+                <div class="code-wrapper">
+                    <div class="line-numbers" id="line-numbers">1</div>
+                    <div class="code-container" id="code-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="ai-panel" class="ai-panel">
+            <div class="ai-header">
+                <span><i class="fas fa-robot"></i> Scanner Bot</span>
+                <i class="fas fa-times" onclick="toggleAI()" style="cursor:pointer; padding: 5px; font-size: 1.2rem;"></i>
+            </div>
+            <div class="ai-content" id="ai-chat">
+                <div class="ai-msg bot">Hallo! Ich scanne deinen Code jetzt tiefgründig. Klicke auf "Analysieren", um echte Fehler in deinem HTML, CSS oder JS zu finden.</div>
+            </div>
+            <div class="ai-actions">
+                <button onclick="runAICheck()" class="btn-create" style="width:100%; font-weight: bold;"><i class="fas fa-search"></i> Code Scannen</button>
+            </div>
+        </div>
+
+        <div class="preview-area" id="preview-area">
+            <div class="preview-header" id="preview-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-grip-vertical" id="drag-icon"></i> LIVE VORSCHAU
+                </div>
+                <div class="preview-controls">
+                    <i class="fas fa-sync-alt" onclick="runCode()" title="Neu laden"></i>
+                    <i class="fas fa-expand" onclick="toggleFullscreen()" title="Vollbild" id="btn-fullscreen"></i>
+                    <i class="fas fa-minus" onclick="minimizePreview()" title="Minimieren"></i>
+                </div>
+            </div>
+            <div class="preview-content">
+                <iframe id="preview-frame"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- BASIS SETUP ---
+        const STORAGE_KEY_USERS = 'gimgm_users_v7';
+        const STORAGE_KEY_CURRENT_USER = 'gimgm_current_user_v7';
+        const STORAGE_KEY_PROJECTS = 'gimgm_projects_v7_';
+
+        let currentUser = null;
+        let projects = [];
+        let currentProject = null;
+        let currentLang = 'html';
+
+        window.onload = () => {
+            checkLogin();
+            setupDraggablePreview();
+        };
+
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.borderLeftColor = type === 'success' ? '#4caf50' : (type === 'error' ? '#f44336' : '#007acc');
+            toast.innerHTML = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // --- AUTH ---
+        function switchAuth(mode) {
+            const isReg = mode === 'register';
+            document.getElementById('tab-login').classList.toggle('active', !isReg);
+            document.getElementById('tab-register').classList.toggle('active', isReg);
+            document.getElementById('auth-btn').innerText = isReg ? 'Registrieren' : 'Anmelden';
+            document.getElementById('auth-form').reset();
+        }
+
+        document.getElementById('auth-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value;
+            const isRegister = document.getElementById('auth-btn').innerText === 'Registrieren';
+            const users = JSON.parse(localStorage.getItem(STORAGE_KEY_USERS) || '[]');
+
+            if (isRegister) {
+                if (users.find(u => u.user === user)) return showToast('Benutzername vergeben!', 'error');
+                users.push({ user, pass });
+                localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
+                showToast('Registriert! Bitte anmelden.', 'success');
+                switchAuth('login');
+            } else {
+                if (users.find(u => u.user === user && u.pass === pass)) performLogin(user);
+                else showToast('Falsche Zugangsdaten!', 'error');
+            }
+        });
+
+        function performLogin(user) {
+            currentUser = user;
+            localStorage.setItem(STORAGE_KEY_CURRENT_USER, user);
+            document.getElementById('auth-container').style.display = 'none';
+            document.getElementById('ide-container').style.display = 'flex';
+            loadProjects();
+        }
+
+        function checkLogin() {
+            const user = localStorage.getItem(STORAGE_KEY_CURRENT_USER);
+            if (user) performLogin(user);
+        }
+
+        function logout() { localStorage.removeItem(STORAGE_KEY_CURRENT_USER); location.reload(); }
+
+        // --- PROJEKTE ---
+        function loadProjects() {
+            const data = localStorage.getItem(STORAGE_KEY_PROJECTS + currentUser);
+            projects = data ? JSON.parse(data) : [];
+            if (projects.length > 0) openProject(projects[0].id); else openNewProjectModal();
+            renderProjectList();
+        }
+
+        function renderProjectList() {
+            const list = document.getElementById('project-list');
+            list.innerHTML = '';
+            projects.forEach(p => {
+                const div = document.createElement('div');
+                div.className = `file ${currentProject && currentProject.id === p.id ? 'active' : ''}`;
+                div.innerHTML = `<i class="fas fa-folder text-yellow"></i> ${p.name}`;
+                div.onclick = () => openProject(p.id);
+                list.appendChild(div);
+            });
+        }
+
+        function openNewProjectModal() { document.getElementById('new-project-modal').style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        function createProject() {
+            const name = document.getElementById('new-project-name').value || 'Unbenannt';
+            const newProj = { 
+                id: Date.now(), name: name, langs: ['html', 'css', 'js'], 
+                code: { 
+                    html: `<!DOCTYPE html>\n<html>\n<body>\n    <h1>Hallo! 👋</h1>\n    <p>Code Editor optimiert.</p>\n</body>\n</html>`, 
+                    css: 'body {\n    background: #f0f2f5;\n    font-family: sans-serif;\n}', 
+                    js: 'console.log("Bereit.");' 
+                } 
+            };
+            projects.push(newProj);
+            saveProjectsToStorage();
+            closeModal('new-project-modal');
+            openProject(newProj.id);
+        }
+
+        function saveProjectsToStorage() { localStorage.setItem(STORAGE_KEY_PROJECTS + currentUser, JSON.stringify(projects)); }
+
+        function openProject(id) { 
+            currentProject = projects.find(p => p.id === id);
+            renderProjectList(); 
+            renderEditorUI(); 
+            runCode(); 
+            if(window.innerWidth <= 768) toggleSidebar(); // Auf Handy Sidebar nach Klick schließen
+        }
+
+        // --- EDITOR UI ---
+        function renderEditorUI() {
+            const tabContainer = document.getElementById('editor-tabs');
+            const codeContainer = document.getElementById('code-container');
+            const fileList = document.getElementById('file-list');
+
+            tabContainer.innerHTML = ''; fileList.innerHTML = ''; codeContainer.innerHTML = '';
+
+            const icons = { html: '<i class="fab fa-html5 text-orange"></i>', css: '<i class="fab fa-css3-alt text-blue"></i>', js: '<i class="fab fa-js text-yellow"></i>' };
+            const ext = { html: '.html', css: '.css', js: '.js' };
+            
+            currentProject.langs.forEach((lang, index) => {
+                const tab = document.createElement('div');
+                tab.className = `tab ${index === 0 ? 'active' : ''}`;
+                tab.innerHTML = `${icons[lang]} index${ext[lang]}`;
+                tab.onclick = () => switchTab(lang);
+                tabContainer.appendChild(tab);
+
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file';
+                fileItem.innerHTML = `${icons[lang]} index${ext[lang]}`;
+                fileItem.onclick = () => switchTab(lang);
+                fileList.appendChild(fileItem);
+
+                const area = document.createElement('textarea');
+                area.className = `code-input ${index === 0 ? 'active' : ''}`;
+                area.id = `code-${lang}`;
+                area.value = currentProject.code[lang];
+                area.spellcheck = false;
+                if(index !== 0) area.style.display = 'none';
+
+                area.addEventListener('input', () => {
+                    currentProject.code[lang] = area.value;
+                    updateLineNumbers(area);
+                });
+                
+                area.addEventListener('scroll', () => { document.getElementById('line-numbers').scrollTop = area.scrollTop; });
+                
+                // Erlaubt Tab-Einrückung
+                area.addEventListener('keydown', (e) => {
+                    if (e.key === 'Tab') {
+                        e.preventDefault();
+                        const start = area.selectionStart;
+                        const end = area.selectionEnd;
+                        area.value = area.value.substring(0, start) + "    " + area.value.substring(end);
+                        area.selectionStart = area.selectionEnd = start + 4;
+                        currentProject.code[lang] = area.value;
+                    }
+                });
+
+                codeContainer.appendChild(area);
+            });
+
+            // Speichern-Button in die Toolbar
+            const toolbar = document.createElement('div');
+            toolbar.className = 'editor-toolbar';
+            toolbar.innerHTML = `<i class="fas fa-save" onclick="saveProjectsToStorage(); showToast('Gespeichert', 'success');" title="Speichern"></i>`;
+            tabContainer.appendChild(toolbar);
+
+            if(currentProject.langs.length > 0) switchTab(currentProject.langs[0]);
+        }
+
+        function switchTab(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.code-input').forEach(el => {
+                el.style.display = el.id === `code-${lang}` ? 'block' : 'none';
+                if(el.id === `code-${lang}`) { el.classList.add('active'); updateLineNumbers(el); }
+            });
+            document.querySelectorAll('.tab').forEach((el, index) => {
+                if(currentProject.langs[index] === lang) el.classList.add('active');
+                else el.classList.remove('active');
+            });
+            if(window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('sidebar-backdrop').classList.remove('open');
+        }
+
+        let lastLineCount = 0;
+        function updateLineNumbers(textarea) {
+            const lines = textarea.value.split('\n').length;
+            if(lines !== lastLineCount) {
+                const lineNumDiv = document.getElementById('line-numbers');
+                let html = '';
+                for(let i=1; i<=lines; i++) html += i + '<br>';
+                lineNumDiv.innerHTML = html;
+                lastLineCount = lines;
+            }
+        }
+
+        // --- PREVIEW RENDERER ---
+        function runCode() {
+            const iframe = document.getElementById('preview-frame');
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            let htmlContent = currentProject.code.html || '';
+            const cssContent = currentProject.code.css ? `<style>${currentProject.code.css}</style>` : '';
+            const jsContent = currentProject.code.js ? `<script>try{ ${currentProject.code.js} }catch(e){ console.error(e); }<\/script>` : '';
+            
+            if(htmlContent.includes('</head>')) htmlContent = htmlContent.replace('</head>', `${cssContent}</head>`); else htmlContent += cssContent;
+            if(htmlContent.includes('</body>')) htmlContent = htmlContent.replace('</body>', `${jsContent}</body>`); else htmlContent += jsContent;
+
+            doc.open(); doc.write(htmlContent); doc.close();
+        }
+
+        // --- NEW AI SCANNER (INTELLIGENT) ---
+        function toggleAI() { document.getElementById('ai-panel').classList.toggle('open'); }
+
+        function runAICheck() {
+            const chat = document.getElementById('ai-chat');
+            chat.innerHTML += `<div class="ai-msg user">Bitte scanne meine ${currentLang.toUpperCase()}-Datei auf Fehler.</div>`;
+            chat.innerHTML += `<div class="ai-msg bot" id="ai-loading">Scanner läuft... <i class="fas fa-spinner fa-spin"></i></div>`;
+            chat.scrollTop = chat.scrollHeight;
+
+            setTimeout(() => {
+                const loader = document.getElementById('ai-loading');
+                if(loader) loader.remove();
+
+                let errors = [];
+                const code = currentProject.code[currentLang] || '';
+
+                if (code.trim() === '') {
+                    errors.push("Die Datei ist komplett leer.");
+                } else if (currentLang === 'js') {
+                    // Sandbox-Syntaxprüfung für echtes JS
+                    try {
+                        new Function(code);
+                    } catch (e) {
+                        errors.push(`<b>Syntax Error:</b> ${e.message}`);
+                    }
+                    if (code.includes('document.write')) errors.push("Warnung: 'document.write' ist veraltet und sollte vermieden werden.");
+                } else if (currentLang === 'html') {
+                    // Intelligente Tag-Prüfung (Stack-Algorithmus)
+                    const tags = code.match(/<\/?([a-z0-9]+)[^>]*>/gi) || [];
+                    let stack = [];
+                    const voidElements = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
+                    
+                    tags.forEach(tag => {
+                        const isClosing = tag.startsWith('</');
+                        const tagNameMatch = tag.match(/<\/?([a-z0-9]+)/i);
+                        if(tagNameMatch) {
+                            const tagName = tagNameMatch[1].toLowerCase();
+                            if(!voidElements.includes(tagName)) {
+                                if(!isClosing) {
+                                    stack.push(tagName);
+                                } else {
+                                    if(stack.length > 0 && stack[stack.length-1] === tagName) stack.pop();
+                                    else errors.push(`Unerwartetes Schließ-Tag <code>&lt;/${tagName}&gt;</code> gefunden.`);
+                                }
+                            }
+                        }
+                    });
+                    if(stack.length > 0) errors.push(`Fehlende Schließ-Tags für: <code>${stack.map(t => '&lt;'+t+'&gt;').join(', ')}</code>`);
+                } else if (currentLang === 'css') {
+                    // CSS Klammern und Semikolons
+                    const openB = (code.match(/\{/g) || []).length;
+                    const closeB = (code.match(/\}/g) || []).length;
+                    if (openB !== closeB) errors.push(`Ungleiche Klammernanzahl: ${openB} mal '{' aber ${closeB} mal '}'.`);
+                    
+                    const lines = code.split('\n');
+                    lines.forEach((line, i) => {
+                        if (line.includes(':') && !line.includes(';') && !line.includes('{') && !line.includes('}')) {
+                            if(line.trim() !== '') errors.push(`Zeile ${i+1}: Wahrscheinlich fehlt ein Semikolon ';' am Ende.`);
+                        }
+                    });
+                }
+
+                if (errors.length > 0) {
+                    chat.innerHTML += `<div class="ai-msg bot error"><strong>Fehlerbericht:</strong><ul>${errors.map(e => `<li>${e}</li>`).join('')}</ul></div>`;
+                } else {
+                    chat.innerHTML += `<div class="ai-msg bot success">Erstaunlich! Keine offensichtlichen Syntax- oder Strukturfehler gefunden. Der Code ist sauber. 🚀</div>`;
+                }
+                chat.scrollTop = chat.scrollHeight;
+            }, 800);
+        }
+
+        // --- RESPONSIVES UI & DRAGGABLE ---
+        function toggleSidebar() { 
+            document.getElementById('sidebar').classList.toggle('open'); 
+            document.getElementById('sidebar-backdrop').classList.toggle('open'); 
+        }
+        
+        function toggleFullscreen() {
+            const p = document.getElementById('preview-area');
+            p.classList.toggle('fullscreen');
+            if(p.classList.contains('fullscreen')) {
+                p.style.top = '0'; p.style.left = '0'; p.style.width = '100%'; p.style.height = '100%';
+                document.getElementById('btn-fullscreen').classList.replace('fa-expand', 'fa-compress');
+            } else {
+                p.style.width = window.innerWidth <= 1024 ? '350px' : '400px';
+                p.style.height = window.innerWidth <= 1024 ? '280px' : '300px';
+                p.style.top = '60px'; p.style.left = 'auto'; p.style.right = '20px';
+                document.getElementById('btn-fullscreen').classList.replace('fa-compress', 'fa-expand');
+            }
+        }
+
+        function minimizePreview() { document.getElementById('preview-area').classList.toggle('minimized'); }
+
+        function setupDraggablePreview() {
+            const preview = document.getElementById('preview-area');
+            const header = document.getElementById('preview-header');
+            let isDragging = false, startX, startY, initLeft, initTop;
+
+            header.addEventListener('mousedown', (e) => {
+                if(window.innerWidth <= 768 || preview.classList.contains('fullscreen')) return; 
+                isDragging = true;
+                startX = e.clientX; startY = e.clientY;
+                preview.classList.add('is-dragging');
+
+                const rect = preview.getBoundingClientRect();
+                initLeft = rect.left; initTop = rect.top;
+                preview.style.right = 'auto';
+                preview.style.left = initLeft + 'px';
+                preview.style.top = initTop + 'px';
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                preview.style.left = `${initLeft + dx}px`;
+                preview.style.top = `${initTop + dy}px`;
+            });
+
+            window.addEventListener('mouseup', () => {
+                if(isDragging) { isDragging = false; preview.classList.remove('is-dragging'); }
+            });
+        }
+    </script>
+</body>
+</html>
